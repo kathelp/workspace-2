@@ -1,0 +1,24 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Secret/config dumps
+credentials/*
+!credentials/README.md
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileconfig
+*.ovpn
+
+# Service account / token files
+*service-account*.json
+*credentials*.json
+*token*.json
+
+# Local tool state
+.direnv/

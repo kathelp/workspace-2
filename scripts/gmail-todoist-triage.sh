@@ -55,7 +55,7 @@ def ensure_label(name):
 
 def add_label(thread_id, label):
     try:
-        gog('gmail', 'threads', 'modify', thread_id, '--add-label', label)
+        gog('gmail', 'labels', 'modify', thread_id, '--add', label)
     except subprocess.CalledProcessError:
         pass
 

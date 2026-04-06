@@ -58,8 +58,9 @@
 - _(to be configured)_
 
 ## Obsidian
-- **Vault location:** `/Users/kat/Documents/obsidian/G`
-- **Sync script:** `scripts/obsidian-sync.sh` - syncs all workspace .md files with backlinks
+- **Vault location:** `/Users/kat/Documents/gsync`
+- **Workspace folder:** `/Users/kat/Documents/gsync/Kat Workspace`
+- **Sync script:** `scripts/obsidian-sync.sh` - syncs workspace markdown files one-way into Obsidian
 
 ## Oura Ring
 - **Token:** macOS Keychain -> `OURA_API_TOKEN` (account: oura)

@@ -3,7 +3,7 @@
 ## Todoist
 - **Token file:** `.env.todoist`
 - **API base:** `https://api.todoist.com/api/v1`
-- **Email triage helper:** `scripts/gmail-todoist-triage.py`
+- **Email triage helper:** `scripts/gmail-todoist-triage.sh`
 - **Projects:**
   - Inbox: `6g7Mf5J6p939RxX4`
   - Work: `6g7Mg937PG4P9g6V`
@@ -21,8 +21,11 @@
 - **Primary inbox:** `garrett@launchlabs.ai`
 - **Access tool:** `gog`
 - **OAuth client JSON:** `/Users/kat/Documents/client_secret_391113707787-0v4gptds6gqn0juadh29s6db0quehoui.apps.googleusercontent.com.json`
-- **Default usage:** `GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'is:unread newer_than:2d' --max 25 --json`
-- **Todoist triage:** `scripts/gmail-todoist-triage.py`
+- **Default usage:** `source .env && GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'is:unread newer_than:2d' --max 25 --json --no-input`
+- **Keyring backend:** `file` via `GOG_KEYRING_PASSWORD` in local `.env`
+- **Todoist triage:** `scripts/gmail-todoist-triage.sh`
+- **Dry run:** `scripts/gmail-todoist-triage.sh 'is:unread newer_than:2d'`
+- **Create tasks:** `scripts/gmail-todoist-triage.sh 'is:unread newer_than:2d' create`
 
 ## TTS
 - **Provider:** OpenAI (gpt-4o-mini-tts)

@@ -36,7 +36,16 @@ find "$WORKSPACE_DIR" -type f \( -name "*.md" -o -name "*.markdown" \) \
     dest_dir="$(dirname "$dest_file")"
 
     mkdir -p "$dest_dir"
-    cp "$file" "$dest_file"
+
+    if [[ "$rel_path" == memory/* ]]; then
+        {
+            printf 'Back to [[MEMORY]]\n\n'
+            cat "$file"
+        } > "$dest_file"
+    else
+        cp "$file" "$dest_file"
+    fi
+
     echo "  + Synced: $rel_path"
 done
 

@@ -21,3 +21,5 @@ secrets/
 
 # Local tool state
 .direnv/
+
+.openclaw/

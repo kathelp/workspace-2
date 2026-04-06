@@ -24,6 +24,8 @@
 - **Default usage:** `source .env && GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d' --max 25 --json --no-input`
 - **Keyring backend:** `file` via `GOG_KEYRING_PASSWORD` in local `.env`
 - **Review labels:** `kat/reviewed`, `kat/todo-created`
+- **Todo rule:** only create a Todoist task when the email implies an actual action for Garrett, not routine notifications
+- **Banyan rule:** lower threshold for `@banyansoftware.com` emails, surface those more readily
 - **Todoist triage:** `scripts/gmail-todoist-triage.sh`
 - **Dry run:** `scripts/gmail-todoist-triage.sh 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d'`
 - **Create tasks:** `scripts/gmail-todoist-triage.sh 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d' create`

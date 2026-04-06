@@ -24,13 +24,18 @@ NOISE_HINTS = [
     'newsletter', 'weekly digest', 'weekly report', 'promo', 'promotion', 'receipt',
     'statement', 'summary', 'invited you to', 'ready:', 'intel report', 'digest',
     'your api account', 'jobs alert', 'weekly', 'account statement', 'top dealership marketing service',
-    'rsvp', 'celebration'
+    'rsvp', 'celebration', 'payment of $', 'invoice has been published', 'financial reports',
+    'funded', 'order is on its way', 'shipment', 'auto renewal is all set'
 ]
-HIGH_SIGNAL_HINTS = [
-    'action required', 'action needed', 'follow up', 'follow-up', 'question', 'review',
-    'security', 'renewal', 'invoice', 'payment', 'alert', 'error', 'issue', 'warning',
-    'unread registered agent documents', 'contract', 'docusign',
-    'compliance filings due', 'webhook disconnected', 'scorecard'
+ACTION_HINTS = [
+    'action required', 'action needed', 'please review', 'please respond', 'reply requested',
+    'follow up', 'follow-up', 'complete', 'approve', 'signature required', 'docusign',
+    'contract', 'webhook disconnected', 'compliance filings due', 'scorecard',
+    'question for you', 'quick question', 'can you', 'need your input', 'awaiting your response'
+]
+EXCEPTION_HINTS = [
+    'error', 'failed', 'failure', 'warning', 'urgent', 'overdue', 'security issue',
+    'critical', 'incident', 'alert', 'exception'
 ]
 REVIEWED_LABEL = 'kat/reviewed'
 TODO_LABEL = 'kat/todo-created'
@@ -65,24 +70,42 @@ def classify(thread):
     sender = (thread.get('from') or '').strip()
     sender_l = sender.lower()
     labels = [l.lower() for l in (thread.get('labels') or [])]
+
     if 'category_promotions' in labels:
         return None
     if any(h in subject_l for h in NOISE_HINTS):
         return None
+
+    if '@banyansoftware.com>' in sender_l or '@banyansoftware.com' in sender_l:
+        if any(h in subject_l for h in NOISE_HINTS):
+            return None
+        return {
+            'project_id': WORK_PROJECT_ID,
+            'content': f'Review Banyan email: {subject}',
+            'reason': 'banyan sender',
+        }
+
     if 'comments-noreply@docs.google.com' in sender_l and 'scorecard' in subject_l:
         return {
             'project_id': WORK_PROJECT_ID,
             'content': f'Review scorecard comment: {subject}',
             'reason': 'scorecard comment',
         }
-    if 'noreply' in sender_l and not any(h in subject_l for h in HIGH_SIGNAL_HINTS):
-        return None
-    if any(h in subject_l for h in HIGH_SIGNAL_HINTS):
+
+    if any(h in subject_l for h in ACTION_HINTS):
         return {
             'project_id': WORK_PROJECT_ID,
             'content': f'Email follow-up: {subject}',
-            'reason': 'high-signal subject',
+            'reason': 'explicit action language',
         }
+
+    if any(h in subject_l for h in EXCEPTION_HINTS):
+        return {
+            'project_id': WORK_PROJECT_ID,
+            'content': f'Investigate email alert: {subject}',
+            'reason': 'exception language',
+        }
+
     return None
 
 matches = []

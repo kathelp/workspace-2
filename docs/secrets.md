@@ -29,22 +29,49 @@ Use 1Password for:
 - service account metadata
 
 ### Local runtime
-Use `/Users/kat/.openclaw/workspace/.env` for secrets needed on this machine.
+Use `/Users/kat/.openclaw/workspace/.env` for workspace-local secrets.
 
 Create it with:
 
 ```bash
+cd /Users/kat/.openclaw/workspace
 cp .env.example .env
 ```
 
 Then fill in the values manually from 1Password.
 
+For OpenClaw service-level config, use:
+
+`/Users/kat/.openclaw/.env`
+
+That file should contain any environment variables referenced by `/Users/kat/.openclaw/openclaw.json`.
+
+## OpenClaw wrapper
+
+If `openclaw.json` uses environment variable references like `${DISCORD_BOT_TOKEN}` or `${OPENCLAW_GATEWAY_TOKEN}`, load them through the wrapper script:
+
+```bash
+/Users/kat/.openclaw/workspace/scripts/openclaw-gateway-with-env restart
+/Users/kat/.openclaw/workspace/scripts/openclaw-gateway-with-env status
+```
+
+The wrapper sources:
+
+`/Users/kat/.openclaw/.env`
+
+before calling:
+
+```bash
+openclaw gateway <command>
+```
+
 ## Suggested workflow
 
 1. Create or update a credential in 1Password.
 2. Copy the current value into `.env` locally.
-3. Restart any tool or process that needs the updated value.
-4. If a secret leaks, rotate it in 1Password and update `.env`.
+3. For OpenClaw config-backed service secrets, also place the needed values in `/Users/kat/.openclaw/.env`.
+4. Restart any tool or process that needs the updated value.
+5. If a secret leaks, rotate it in 1Password and update the local env file.
 
 ## What not to do
 
@@ -63,6 +90,7 @@ Use uppercase env vars, for example:
 - `GITHUB_TOKEN`
 - `TODOIST_API_TOKEN`
 - `DISCORD_BOT_TOKEN`
+- `OPENCLAW_GATEWAY_TOKEN`
 
 ## Files in this workspace
 
@@ -70,18 +98,20 @@ Committed:
 - `.env.example`
 - `docs/secrets.md`
 - `.gitignore`
+- `scripts/openclaw-gateway-with-env`
 
 Local only:
 - `.env`
+- `/Users/kat/.openclaw/.env`
 
 ## Security tradeoff
 
-This setup stores plaintext secrets in `.env` on the local machine.
+This setup stores plaintext secrets in local `.env` files on the machine.
 That is acceptable here if:
 - the Mac is trusted
 - FileVault is enabled
 - the account is protected well
-- `.env` stays out of git
+- env files stay out of git
 
 ## Optional future upgrades
 

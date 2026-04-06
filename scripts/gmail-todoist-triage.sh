@@ -2,29 +2,23 @@
 set -euo pipefail
 
 WORKSPACE="/Users/kat/.openclaw/workspace"
-STATE_DIR="$WORKSPACE/.openclaw/state"
-STATE_FILE="$STATE_DIR/gmail-todoist-triage.json"
 TODOIST_ENV="$WORKSPACE/.env.todoist"
 ACCOUNT="garrett@launchlabs.ai"
-QUERY="${1:-is:unread newer_than:2d}"
+QUERY="${1:-in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d}"
 MODE="${2:-dry-run}"
 MAX="${3:-25}"
-
-mkdir -p "$STATE_DIR"
-if [ ! -f "$STATE_FILE" ]; then
-  printf '{"created_by_thread":{}}\n' > "$STATE_FILE"
-fi
 
 TMP_GMAIL="$(mktemp)"
 trap 'rm -f "$TMP_GMAIL"' EXIT
 
-env GOG_ACCOUNT="$ACCOUNT" gog gmail search "$QUERY" --max "$MAX" --json > "$TMP_GMAIL"
+env GOG_ACCOUNT="$ACCOUNT" gog gmail search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
 
-python3 - "$TMP_GMAIL" "$STATE_FILE" "$TODOIST_ENV" "$MODE" <<'PY'
-import json, sys, urllib.request
+python3 - "$TMP_GMAIL" "$TODOIST_ENV" "$MODE" <<'PY'
+import json, subprocess, sys, urllib.request
 from pathlib import Path
 
-gmail_path, state_path, todoist_env_path, mode = sys.argv[1:5]
+gmail_path, todoist_env_path, mode = sys.argv[1:4]
+ACCOUNT = 'garrett@launchlabs.ai'
 WORK_PROJECT_ID = '6g7Mg937PG4P9g6V'
 NOISE_HINTS = [
     'newsletter', 'weekly digest', 'weekly report', 'promo', 'promotion', 'receipt',
@@ -38,10 +32,32 @@ HIGH_SIGNAL_HINTS = [
     'unread registered agent documents', 'contract', 'docusign',
     'compliance filings due', 'webhook disconnected', 'scorecard'
 ]
+REVIEWED_LABEL = 'kat/reviewed'
+TODO_LABEL = 'kat/todo-created'
 
 results = json.loads(Path(gmail_path).read_text())
-state = json.loads(Path(state_path).read_text())
-created_by_thread = state.setdefault('created_by_thread', {})
+
+def gog(*args):
+    cmd = ['env', f'GOG_ACCOUNT={ACCOUNT}', 'gog', *args, '--no-input']
+    return subprocess.check_output(cmd, text=True)
+
+def ensure_label(name):
+    try:
+        existing = gog('gmail', 'labels', 'list', '--json')
+        data = json.loads(existing)
+        labels = data.get('labels') if isinstance(data, dict) else data
+        labels = labels or []
+        if any((label.get('name') or '').lower() == name.lower() for label in labels):
+            return
+        gog('gmail', 'labels', 'create', name)
+    except subprocess.CalledProcessError:
+        pass
+
+def add_label(thread_id, label):
+    try:
+        gog('gmail', 'threads', 'modify', thread_id, '--add-label', label)
+    except subprocess.CalledProcessError:
+        pass
 
 def classify(thread):
     subject = (thread.get('subject') or '').strip()
@@ -70,19 +86,16 @@ def classify(thread):
     return None
 
 matches = []
-skipped_existing = []
+review_only = []
 for thread in results.get('threads', []):
-    thread_id = thread.get('id')
-    if thread_id in created_by_thread:
-        skipped_existing.append({
-            'thread_id': thread_id,
-            'task_id': created_by_thread[thread_id],
-            'subject': thread.get('subject'),
-        })
-        continue
     decision = classify(thread)
     if decision:
         matches.append((thread, decision))
+    else:
+        review_only.append(thread)
+
+ensure_label(REVIEWED_LABEL)
+ensure_label(TODO_LABEL)
 
 if mode != 'create':
     print(json.dumps({
@@ -98,7 +111,14 @@ if mode != 'create':
             }
             for t, d in matches
         ],
-        'skipped_existing': skipped_existing,
+        'review_only': [
+            {
+                'thread_id': t.get('id'),
+                'from': t.get('from'),
+                'subject': t.get('subject'),
+            }
+            for t in review_only
+        ],
     }, indent=2))
     raise SystemExit(0)
 
@@ -130,7 +150,8 @@ for thread, decision in matches:
         f"Reason: {decision['reason']}"
     )
     task = create_task(decision['content'], decision['project_id'], desc)
-    created_by_thread[thread.get('id')] = task.get('id')
+    add_label(thread.get('id'), TODO_LABEL)
+    add_label(thread.get('id'), REVIEWED_LABEL)
     created.append({
         'thread_id': thread.get('id'),
         'task_id': task.get('id'),
@@ -138,6 +159,14 @@ for thread, decision in matches:
         'reason': decision['reason'],
     })
 
-Path(state_path).write_text(json.dumps(state, indent=2) + '\n')
-print(json.dumps({'mode': 'create', 'created': created, 'skipped_existing': skipped_existing}, indent=2))
+reviewed = []
+for thread in review_only:
+    add_label(thread.get('id'), REVIEWED_LABEL)
+    reviewed.append(thread.get('id'))
+
+print(json.dumps({
+    'mode': 'create',
+    'created': created,
+    'reviewed_only': reviewed,
+}, indent=2))
 PY

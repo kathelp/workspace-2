@@ -21,11 +21,13 @@
 - **Primary inbox:** `garrett@launchlabs.ai`
 - **Access tool:** `gog`
 - **OAuth client JSON:** `/Users/kat/Documents/client_secret_391113707787-0v4gptds6gqn0juadh29s6db0quehoui.apps.googleusercontent.com.json`
-- **Default usage:** `source .env && GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'is:unread newer_than:2d' --max 25 --json --no-input`
+- **Default usage:** `source .env && GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d' --max 25 --json --no-input`
 - **Keyring backend:** `file` via `GOG_KEYRING_PASSWORD` in local `.env`
+- **Review labels:** `kat/reviewed`, `kat/todo-created`
 - **Todoist triage:** `scripts/gmail-todoist-triage.sh`
-- **Dry run:** `scripts/gmail-todoist-triage.sh 'is:unread newer_than:2d'`
-- **Create tasks:** `scripts/gmail-todoist-triage.sh 'is:unread newer_than:2d' create`
+- **Dry run:** `scripts/gmail-todoist-triage.sh 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d'`
+- **Create tasks:** `scripts/gmail-todoist-triage.sh 'in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d' create`
+- **Hourly runner:** `scripts/gmail-todoist-hourly.sh`
 
 ## TTS
 - **Provider:** OpenAI (gpt-4o-mini-tts)

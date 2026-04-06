@@ -3,6 +3,7 @@
 ## Todoist
 - **Token file:** `.env.todoist`
 - **API base:** `https://api.todoist.com/api/v1`
+- **Email triage helper:** `scripts/gmail-todoist-triage.py`
 - **Projects:**
   - Inbox: `6g7Mf5J6p939RxX4`
   - Work: `6g7Mg937PG4P9g6V`
@@ -16,12 +17,12 @@
 - **Task format:**
   - Always include Gmail thread link in description: `https://mail.google.com/mail/u/0/#inbox/<threadId>`
 
-## Proton Mail (Personal)
-- **Account:** rgroach@pm.me
-- **Access:** Proton Mail Bridge -> IMAP on localhost:1143 (STARTTLS)
-- **Creds:** macOS Keychain -> `PROTON_BRIDGE_PASSWORD` (account: rgroach@pm.me)
-- **Folders of note:** INBOX, Folders/github, Folders/gmail
-- **Requires:** Proton Mail Bridge running (`/Applications/Proton Mail Bridge.app`)
+## Gmail (Work)
+- **Primary inbox:** `garrett@launchlabs.ai`
+- **Access tool:** `gog`
+- **OAuth client JSON:** `/Users/kat/Documents/client_secret_391113707787-0v4gptds6gqn0juadh29s6db0quehoui.apps.googleusercontent.com.json`
+- **Default usage:** `GOG_ACCOUNT=garrett@launchlabs.ai gog gmail search 'is:unread newer_than:2d' --max 25 --json`
+- **Todoist triage:** `scripts/gmail-todoist-triage.py`
 
 ## TTS
 - **Provider:** OpenAI (gpt-4o-mini-tts)

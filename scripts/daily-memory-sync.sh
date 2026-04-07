@@ -35,20 +35,73 @@ if [ ! -f "$TODAY_NOTE" ]; then
   echo "[$TIMESTAMP] Created daily note: $TODAY_NOTE"
 fi
 
-{
-  echo "Review run: $TIMESTAMP"
-  echo
-  echo "Files checked:"
-  [ -f "$YESTERDAY_NOTE" ] && echo "- $(basename "$YESTERDAY_NOTE")"
-  [ -f "$TODAY_NOTE" ] && echo "- $(basename "$TODAY_NOTE")"
-  echo "- $(basename "$MEMORY_INDEX")"
-  echo
-  echo "Recent highlights:"
-  if [ -f "$YESTERDAY_NOTE" ]; then
-    awk 'NF { print "- " $0; count++; if (count >= 8) exit }' "$YESTERDAY_NOTE"
-  fi
-  awk 'NF { print "- " $0; count++; if (count >= 8) exit }' "$TODAY_NOTE"
-} > "$TMP_REVIEW"
+python3 - <<'PY' "$TODAY_NOTE" "$YESTERDAY_NOTE" "$TMP_REVIEW" "$TIMESTAMP"
+import pathlib
+import re
+import sys
+
+
+def bullets_from(path_str, limit=8):
+    path = pathlib.Path(path_str)
+    if not path.exists():
+        return []
+    lines = []
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith('#'):
+            continue
+        if line == '## Daily Memory Review':
+            break
+        if line.startswith('Review run:') or line.startswith('Files checked:') or line.startswith('Recent highlights:'):
+            continue
+        if line.startswith('- Last automated daily memory review:'):
+            continue
+        line = re.sub(r'^[-*]\s*', '', line).strip()
+        if not line:
+            continue
+        lines.append(line)
+        if len(lines) >= limit:
+            break
+    return lines
+
+
+today_path = pathlib.Path(sys.argv[1])
+yesterday_path = pathlib.Path(sys.argv[2])
+out_path = pathlib.Path(sys.argv[3])
+timestamp = sys.argv[4]
+
+yesterday = bullets_from(yesterday_path, limit=6)
+today = bullets_from(today_path, limit=6)
+
+review = []
+review.append(f'Review run: {timestamp}')
+review.append('')
+review.append('Files checked:')
+if yesterday_path.exists():
+    review.append(f'- {yesterday_path.name}')
+review.append(f'- {today_path.name}')
+review.append(f'- MEMORY.md')
+review.append('')
+review.append('Recent highlights:')
+
+highlights = []
+if yesterday:
+    highlights.append('From yesterday:')
+    highlights.extend(f'- {line}' for line in yesterday)
+if today:
+    if highlights:
+        highlights.append('')
+    highlights.append('From today:')
+    highlights.extend(f'- {line}' for line in today)
+
+if not highlights:
+    highlights.append('- No substantive notes yet. Review ran and sync still completed.')
+
+review.extend(highlights)
+out_path.write_text('\n'.join(review) + '\n')
+PY
 
 python3 - <<'PY' "$TODAY_NOTE" "$TMP_REVIEW"
 import pathlib
@@ -56,9 +109,9 @@ import sys
 
 today_path = pathlib.Path(sys.argv[1])
 review_path = pathlib.Path(sys.argv[2])
-review_text = review_path.read_text()
+review_text = review_path.read_text().strip()
 section_header = '## Daily Memory Review\n'
-entry = section_header + review_text.strip() + '\n'
+entry = section_header + review_text + '\n'
 text = today_path.read_text() if today_path.exists() else ''
 if section_header in text:
     before, _sep, _after = text.partition(section_header)

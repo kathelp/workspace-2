@@ -12,6 +12,7 @@ This is the high-signal index, not the full dump.
 - Do not create a Todoist task from email unless there is an actual action Garrett needs to take; routine notifications should be reviewed/labeled but not taskified. Lower the threshold for emails from `@banyansoftware.com`. (Added 2026-04-06)
 - Todoist tasks created from email should include useful context and a direct Gmail thread link in the task description. (Added 2026-04-06)
 - When a supported internal housekeeping change is clearly requested, prefer doing it directly instead of stopping at partial setup or handoff. (Added 2026-04-06)
+- Treat Garrett's Todoist comments as instructions, and treat tasks created in the **For Kat** project as work assigned to me. (Added 2026-04-07)
 
 ## Routines
 - Share a weekly memory review in #memory-management so Garrett can correct, sharpen, or add context. (Added 2026-03-07)

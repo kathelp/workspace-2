@@ -9,6 +9,11 @@
   - Work: `6g7Mg937PG4P9g6V`
   - Follow-up: `6g7Mg93mCQHHwXmx`
   - Personal: `6g7Mg96MfRc5G2RQ`
+  - For Kat: `6gJVwj7Vvqp7X9wF`
+- **Operating rules:**
+  - Check Todoist regularly
+  - If Garrett leaves an instruction in a Todoist comment, carry it out
+  - If Garrett creates a task in **For Kat**, treat it as work for me to do
 - **Routing rules:**
   - `garrett@launchlabs.ai` emails -> **Work** project
   - Emails from real contacts/relationships needing a reply -> **Follow-up** project

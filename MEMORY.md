@@ -10,6 +10,8 @@ This is the high-signal index, not the full dump.
 - Regularly commit workspace changes and push them to GitHub without asking first. (Added 2026-04-06)
 - Use Gmail review labels, not read/unread state, to track which emails have already been processed. (Added 2026-04-06)
 - Do not create a Todoist task from email unless there is an actual action Garrett needs to take; routine notifications should be reviewed/labeled but not taskified. Lower the threshold for emails from `@banyansoftware.com`. (Added 2026-04-06)
+- Todoist tasks created from email should include useful context and a direct Gmail thread link in the task description. (Added 2026-04-06)
+- When a supported internal housekeeping change is clearly requested, prefer doing it directly instead of stopping at partial setup or handoff. (Added 2026-04-06)
 
 ## Routines
 - Share a weekly memory review in #memory-management so Garrett can correct, sharpen, or add context. (Added 2026-03-07)
@@ -33,5 +35,6 @@ This is the high-signal index, not the full dump.
 
 ## Notes
 - Last automated daily memory review: 2026-04-06 (2026-04-06 20:31:50 EDT)
+- Discord elevated host access now works for Garrett's direct chat after allowlisting his Discord user ID in both global and main-agent `tools.elevated.allowFrom.discord`. (Added 2026-04-06)
 - Keep this file short, durable, and opinionated.
 - Move detailed profiles and softer context into the supporting files above.

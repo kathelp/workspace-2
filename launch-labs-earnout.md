@@ -80,9 +80,39 @@
 |--------|--------|-------|
 | Gmail (work) | ✅ Connected | garrett@launchlabs.ai via gog |
 | Pipedrive CRM | ✅ Connected | API key in Keychain |
-| Charges API (usage) | 🔜 Pending | Garrett to provide docs |
-| Charges API (fixed) | 🔜 To be built | Garrett to create endpoint |
-| Charges API (enterprise) | 🔜 To be built | Garrett to create endpoint |
+| Charges LLM schema/query API | ✅ Connected | Read-only analytics access via `/api/llm/schema` and `/api/llm/query` with `llm_token` |
+| Legacy Charges invoice endpoints | ✅ Documented | `/api/invoices`, `/api/invoices/:id`, `/api/deal_invoices` |
+
+### Charges Data Model - What we can analyze now
+The new Charges analytics API exposes a useful billing warehouse slice covering:
+- `accounts` - customer records, subscription flags, subscription dates, monthly subscription amount
+- `charges` - line-item billed activity by account, billing application, invoice, and billing period
+- `invoices` - billed amount, balance, due date, and status
+- `payments` - cash collection against invoices
+- `billing_applications` - source products or billing streams behind charges and subscription events
+- `forecasted_charges` - projected billing by account and period
+- `flat_rates` - fixed recurring commercial terms
+- `enterprise_sales` - enterprise recurring terms
+- `subscription_events` - lifecycle signals like upgrades, downgrades, churn, or activations
+- `contacts` - account contacts
+
+### What this unlocks for earn-out analysis
+This is materially better than the earlier endpoint plan because we can now answer both billing and revenue questions with direct SQL instead of waiting on separate purpose-built endpoints.
+
+High-value analyses now possible:
+- monthly billed revenue by account and billing application
+- split between usage-based, flat-rate, and enterprise-style revenue models
+- invoice balances and receivables aging
+- forecast vs actual revenue by month
+- subscription lifecycle trends from `subscription_events`
+- active commercial terms and upcoming expirations
+- revenue concentration across top accounts
+
+### Immediate hypotheses to validate in Charges
+1. `billing_applications` may map closely to revenue streams that matter for earn-out segmentation
+2. `flat_rates` and `enterprise_sales` should make Tier 2 and Tier 3 revenue measurable without separate mocked endpoints
+3. `forecasted_charges` may provide an early warning layer for future revenue tracking
+4. `subscription_events` may be the cleanest source for upgrade, downgrade, churn, and activation analysis
 
 ## Open Questions
 - What's the organic growth rate of usage-based revenue (if nothing changes)?
@@ -93,9 +123,10 @@
 - Sales team: who's selling each tier, and what's capacity?
 
 ## TODO
-- [ ] Garrett: Charges API documentation + fixed rate & Focal Graph endpoints
+- [x] Charges analytics API documentation captured locally
+- [ ] Run first-pass SQL exploration of Charges schema and validate mapping from tables to Tier 1, Tier 2, Tier 3, and add-on revenue buckets
 - [ ] Formalize Tier 1 → Tier 2 conversion tracking (pipeline or criteria)
-- [ ] Build automated monthly revenue tracking once APIs are available
+- [ ] Build automated monthly revenue tracking using Charges + Pipedrive
 - [ ] Develop detailed growth strategy per lever
 
 ---

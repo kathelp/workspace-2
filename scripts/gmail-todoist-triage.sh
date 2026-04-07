@@ -11,7 +11,13 @@ MAX="${3:-25}"
 TMP_GMAIL="$(mktemp)"
 trap 'rm -f "$TMP_GMAIL"' EXIT
 
-env GOG_ACCOUNT="$ACCOUNT" gog gmail search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
+GOG_BIN="${GOG_BIN:-$(command -v gog || true)}"
+if [[ -z "$GOG_BIN" ]]; then
+  echo "gog not found in PATH=$PATH" >&2
+  exit 127
+fi
+
+env GOG_ACCOUNT="$ACCOUNT" "$GOG_BIN" gmail search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
 
 python3 - "$TMP_GMAIL" "$TODOIST_ENV" "$MODE" <<'PY'
 import json, subprocess, sys, urllib.request
@@ -19,6 +25,7 @@ from pathlib import Path
 
 gmail_path, todoist_env_path, mode = sys.argv[1:4]
 ACCOUNT = 'garrett@launchlabs.ai'
+GOG_BIN = '/opt/homebrew/bin/gog'
 WORK_PROJECT_ID = '6g7Mg937PG4P9g6V'
 NOISE_HINTS = [
     'newsletter', 'weekly digest', 'weekly report', 'promo', 'promotion', 'receipt',
@@ -43,7 +50,7 @@ TODO_LABEL = 'kat/todo-created'
 results = json.loads(Path(gmail_path).read_text())
 
 def gog(*args):
-    cmd = ['env', f'GOG_ACCOUNT={ACCOUNT}', 'gog', *args, '--no-input']
+    cmd = ['env', f'GOG_ACCOUNT={ACCOUNT}', GOG_BIN, *args, '--no-input']
     return subprocess.check_output(cmd, text=True)
 
 def ensure_label(name):
@@ -166,10 +173,13 @@ def create_task(content, project_id, description):
 
 created = []
 for thread, decision in matches:
+    thread_id = thread.get('id')
     desc = (
         f"From: {thread.get('from')}\n"
+        f"Subject: {thread.get('subject')}\n"
         f"Date: {thread.get('date')}\n"
-        f"Gmail thread id: {thread.get('id')}\n"
+        f"Gmail thread id: {thread_id}\n"
+        f"Gmail thread: https://mail.google.com/mail/u/0/#inbox/{thread_id}\n"
         f"Reason: {decision['reason']}"
     )
     task = create_task(decision['content'], decision['project_id'], desc)

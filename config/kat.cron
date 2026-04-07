@@ -1,0 +1,2 @@
+33 * * * * cd /Users/kat/.openclaw/workspace && ./scripts/gmail-todoist-hourly.sh
+15 6 * * * cd /Users/kat/.openclaw/workspace && ./scripts/daily-memory-sync.sh

@@ -9,6 +9,7 @@ set +a
 export GOG_BIN="${GOG_BIN:-/opt/homebrew/bin/gog}"
 
 QUERY='in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d'
+SENT_QUERY='in:sent -label:kat/reviewed newer_than:14d'
 LOG_DIR="$HOME/.openclaw/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/gmail-todoist-hourly.log"
@@ -17,6 +18,8 @@ LOG_FILE="$LOG_DIR/gmail-todoist-hourly.log"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] hourly gmail triage start"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] PATH=$PATH"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] GOG_BIN=$GOG_BIN"
-  ./scripts/gmail-todoist-triage.sh "$QUERY" create 25
+  ./scripts/gmail-todoist-triage.sh "$QUERY" create 25 inbox
+  ./scripts/gmail-todoist-triage.sh "$SENT_QUERY" create 25 sent
+  python3 ./scripts/todoist-hourly-check.py
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] hourly gmail triage end"
 } >> "$LOG_FILE" 2>&1

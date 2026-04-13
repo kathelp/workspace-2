@@ -7,6 +7,7 @@ ACCOUNT="garrett@launchlabs.ai"
 QUERY="${1:-in:inbox -label:kat/reviewed -label:kat/todo-created newer_than:14d}"
 MODE="${2:-dry-run}"
 MAX="${3:-25}"
+MAILBOX_MODE="${4:-inbox}"
 
 TMP_GMAIL="$(mktemp)"
 trap 'rm -f "$TMP_GMAIL"' EXIT
@@ -17,35 +18,67 @@ if [[ -z "$GOG_BIN" ]]; then
   exit 127
 fi
 
-env GOG_ACCOUNT="$ACCOUNT" "$GOG_BIN" gmail search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
+if [[ "$MAILBOX_MODE" == "sent" ]]; then
+  env GOG_ACCOUNT="$ACCOUNT" "$GOG_BIN" gmail messages search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
+else
+  env GOG_ACCOUNT="$ACCOUNT" "$GOG_BIN" gmail search "$QUERY" --max "$MAX" --json --no-input > "$TMP_GMAIL"
+fi
 
-python3 - "$TMP_GMAIL" "$TODOIST_ENV" "$MODE" <<'PY'
-import json, subprocess, sys, urllib.request
+python3 - "$TMP_GMAIL" "$TODOIST_ENV" "$MODE" "$MAILBOX_MODE" <<'PY'
+import json, re, subprocess, sys, urllib.request
 from pathlib import Path
 
-gmail_path, todoist_env_path, mode = sys.argv[1:4]
+gmail_path, todoist_env_path, mode, mailbox_mode = sys.argv[1:5]
 ACCOUNT = 'garrett@launchlabs.ai'
 GOG_BIN = '/opt/homebrew/bin/gog'
 WORK_PROJECT_ID = '6g7Mg937PG4P9g6V'
-NOISE_HINTS = [
-    'newsletter', 'weekly digest', 'weekly report', 'promo', 'promotion', 'receipt',
-    'statement', 'summary', 'invited you to', 'ready:', 'intel report', 'digest',
-    'your api account', 'jobs alert', 'weekly', 'account statement', 'top dealership marketing service',
-    'rsvp', 'celebration', 'payment of $', 'invoice has been published', 'financial reports',
-    'funded', 'order is on its way', 'shipment', 'auto renewal is all set'
-]
-ACTION_HINTS = [
-    'action required', 'action needed', 'please review', 'please respond', 'reply requested',
-    'follow up', 'follow-up', 'complete', 'approve', 'signature required', 'docusign',
-    'contract', 'webhook disconnected', 'compliance filings due', 'scorecard',
-    'question for you', 'quick question', 'can you', 'need your input', 'awaiting your response'
-]
-EXCEPTION_HINTS = [
-    'error', 'failed', 'failure', 'warning', 'urgent', 'overdue', 'security issue',
-    'critical', 'incident', 'alert', 'exception'
-]
+FOLLOWUP_PROJECT_ID = '6g7Mg93mCQHHwXmx'
 REVIEWED_LABEL = 'kat/reviewed'
 TODO_LABEL = 'kat/todo-created'
+
+DIRECT_PEOPLE = [
+    'tjordan@banyansoftware.com', 'scastiglione@banyansoftware.com', 'sburgess@banyansoftware.com',
+    'mmorgan@launchlabs.ai', 'eric@launchlabs.ai', 'holly@launchlabs.ai', 'matthew@launchlabs.ai',
+    'emily@launchlabs.ai', 'harris@launchlabs.ai', 'jkosobucki@morganautogroup.com',
+]
+
+FINANCE_ROUTINE_SENDERS = [
+    'hello@mercury.com', 'businessservices@intuit.com', 'quickbooks@notification.intuit.com',
+    'notifications@stripe.com', 'notifications@airmail.pilot.com', 'support@mailjet.com',
+    'invoices@mailjet.com', 'service@paypal.com', 'mercury@investordelivery.com',
+    'no-reply@accrue401k.com', 'noreply@intuit.com', 'workspace-noreply@google.com',
+    'noreply@zenbusiness.com'
+]
+
+READ_LATER_SENDERS = [
+    'hello@theinformation.com', 'noreply@trustmineral.com', 'hello@ollama.com',
+    'no-reply@email.claude.com', 'noreply@glassdoor.com', 'replyto@email.microsoft.com',
+    'team@mail.cursor.com', 'mariano@trycomp.ai', 'coursera@m.learn.coursera.org',
+    'steve@automotive.ventures', 'feedback@slack.com', 'hello@nubest.com',
+    'donotreply@alerts.airbrake.io'
+]
+
+COLD_SOLICITATION_SENDERS = [
+    'hit-reply@linkedin.com', 'mariano@trycomp.ai', 'replyto@email.microsoft.com',
+    'team@mail.cursor.com', 'hello@ollama.com', 'no-reply@email.claude.com'
+]
+
+COLD_SOLICITATION_HINTS = [
+    'quick question', 'bottleneck checklist', 'quick thought', 'opportunity', 'workshop',
+    'register now', 'hiring', 'meet the new', 'power your team', 'scale and centralize',
+    'leverage the ai', 'selling to ai agents'
+]
+
+RELATIONSHIP_HINTS = [
+    'rsvp', 'invitation', 'celebration', 'quick question', 'question for you',
+    'can you', 'need your input', 'awaiting your response', 'please respond', 'please review'
+]
+
+HARD_EXCEPTION_HINTS = [
+    'fraud', 'suspicious login', 'account locked', 'service interruption', 'failed payment'
+]
+
+SCORING_DOC_HINTS = ['scorecard', 'earnout', 'earn-out']
 
 results = json.loads(Path(gmail_path).read_text())
 
@@ -71,58 +104,101 @@ def add_label(thread_id, label):
     except subprocess.CalledProcessError:
         pass
 
-def classify(thread):
-    subject = (thread.get('subject') or '').strip()
+def archive_thread(thread_id):
+    try:
+        gog('gmail', 'labels', 'modify', thread_id, '--remove', 'INBOX')
+    except subprocess.CalledProcessError:
+        pass
+
+def iter_items(results):
+    if mailbox_mode == 'sent':
+        return results.get('messages', [])
+    return results.get('threads', [])
+
+def item_id(item):
+    return item.get('threadId') if mailbox_mode == 'sent' else item.get('id')
+
+def extract_email(sender):
+    sender = (sender or '').strip().lower()
+    m = re.search(r'<([^>]+)>', sender)
+    return m.group(1).lower() if m else sender
+
+def classify(item):
+    subject = (item.get('subject') or '').strip()
     subject_l = subject.lower()
-    sender = (thread.get('from') or '').strip()
-    sender_l = sender.lower()
-    labels = [l.lower() for l in (thread.get('labels') or [])]
+    sender = (item.get('from') or '').strip()
+    sender_email = extract_email(sender)
+    labels = [l.lower() for l in (item.get('labels') or [])]
 
-    if 'category_promotions' in labels:
-        return None
-    if any(h in subject_l for h in NOISE_HINTS):
+    if mailbox_mode == 'sent':
         return None
 
-    if '@banyansoftware.com>' in sender_l or '@banyansoftware.com' in sender_l:
-        if any(h in subject_l for h in NOISE_HINTS):
-            return None
+    if sender_email in COLD_SOLICITATION_SENDERS or any(h in subject_l for h in COLD_SOLICITATION_HINTS):
+        return {
+            'project_id': None,
+            'content': None,
+            'reason': 'cold solicitation',
+            'lane': 'archive',
+        }
+
+    if sender_email in FINANCE_ROUTINE_SENDERS:
+        if any(h in subject_l for h in HARD_EXCEPTION_HINTS):
+            return {
+                'project_id': WORK_PROJECT_ID,
+                'content': f'Review finance exception: {subject}',
+                'reason': 'hard finance exception language',
+                'lane': 'high-signal',
+            }
+        return None
+
+    if sender_email == 'donotreply@alerts.airbrake.io':
+        return None
+
+    if sender_email in READ_LATER_SENDERS or 'category_promotions' in labels:
+        return None
+
+    if sender_email.endswith('@banyansoftware.com'):
         return {
             'project_id': WORK_PROJECT_ID,
             'content': f'Review Banyan email: {subject}',
             'reason': 'banyan sender',
+            'lane': 'high-signal',
         }
 
-    if 'comments-noreply@docs.google.com' in sender_l and 'scorecard' in subject_l:
+    if sender_email == 'comments-noreply@docs.google.com' and any(h in subject_l for h in SCORING_DOC_HINTS):
         return {
             'project_id': WORK_PROJECT_ID,
-            'content': f'Review scorecard comment: {subject}',
-            'reason': 'scorecard comment',
+            'content': f'Review doc comment: {subject}',
+            'reason': 'scorecard or earnout doc comment',
+            'lane': 'high-signal',
         }
 
-    if any(h in subject_l for h in ACTION_HINTS):
+    if sender_email in DIRECT_PEOPLE:
         return {
-            'project_id': WORK_PROJECT_ID,
-            'content': f'Email follow-up: {subject}',
-            'reason': 'explicit action language',
+            'project_id': FOLLOWUP_PROJECT_ID,
+            'content': f'Reply or review: {subject}',
+            'reason': 'direct person / known relationship',
+            'lane': 'reply-needed',
         }
 
-    if any(h in subject_l for h in EXCEPTION_HINTS):
+    if any(h in subject_l for h in RELATIONSHIP_HINTS):
         return {
-            'project_id': WORK_PROJECT_ID,
-            'content': f'Investigate email alert: {subject}',
-            'reason': 'exception language',
+            'project_id': FOLLOWUP_PROJECT_ID,
+            'content': f'Reply or review: {subject}',
+            'reason': 'relationship or response language',
+            'lane': 'reply-needed',
         }
 
     return None
 
 matches = []
 review_only = []
-for thread in results.get('threads', []):
-    decision = classify(thread)
+for item in iter_items(results):
+    decision = classify(item)
     if decision:
-        matches.append((thread, decision))
+        matches.append((item, decision))
     else:
-        review_only.append(thread)
+        review_only.append(item)
 
 ensure_label(REVIEWED_LABEL)
 ensure_label(TODO_LABEL)
@@ -130,20 +206,22 @@ ensure_label(TODO_LABEL)
 if mode != 'create':
     print(json.dumps({
         'mode': 'dry-run',
+        'mailbox_mode': mailbox_mode,
         'matches': [
             {
-                'thread_id': t.get('id'),
+                'thread_id': item_id(t),
                 'from': t.get('from'),
                 'subject': t.get('subject'),
                 'project_id': d['project_id'],
                 'task_content': d['content'],
                 'reason': d['reason'],
+                'lane': d.get('lane'),
             }
             for t, d in matches
         ],
         'review_only': [
             {
-                'thread_id': t.get('id'),
+                'thread_id': item_id(t),
                 'from': t.get('from'),
                 'subject': t.get('subject'),
             }
@@ -172,33 +250,50 @@ def create_task(content, project_id, description):
         return json.load(resp)
 
 created = []
-for thread, decision in matches:
-    thread_id = thread.get('id')
+for item, decision in matches:
+    thread_id = item_id(item)
+
+    if decision.get('lane') == 'archive':
+        archive_thread(thread_id)
+        add_label(thread_id, REVIEWED_LABEL)
+        created.append({
+            'thread_id': thread_id,
+            'task_id': None,
+            'content': None,
+            'reason': decision['reason'],
+            'lane': decision.get('lane'),
+        })
+        continue
+
     desc = (
-        f"From: {thread.get('from')}\n"
-        f"Subject: {thread.get('subject')}\n"
-        f"Date: {thread.get('date')}\n"
+        f"From: {item.get('from')}\n"
+        f"Subject: {item.get('subject')}\n"
+        f"Date: {item.get('date')}\n"
+        f"Lane: {decision.get('lane')}\n"
         f"Gmail thread id: {thread_id}\n"
         f"Gmail thread: https://mail.google.com/mail/u/0/#inbox/{thread_id}\n"
         f"Reason: {decision['reason']}"
     )
     task = create_task(decision['content'], decision['project_id'], desc)
-    add_label(thread.get('id'), TODO_LABEL)
-    add_label(thread.get('id'), REVIEWED_LABEL)
+    add_label(thread_id, TODO_LABEL)
+    add_label(thread_id, REVIEWED_LABEL)
     created.append({
-        'thread_id': thread.get('id'),
+        'thread_id': thread_id,
         'task_id': task.get('id'),
         'content': task.get('content'),
         'reason': decision['reason'],
+        'lane': decision.get('lane'),
     })
 
 reviewed = []
-for thread in review_only:
-    add_label(thread.get('id'), REVIEWED_LABEL)
-    reviewed.append(thread.get('id'))
+for item in review_only:
+    reviewed_id = item_id(item)
+    add_label(reviewed_id, REVIEWED_LABEL)
+    reviewed.append(reviewed_id)
 
 print(json.dumps({
     'mode': 'create',
+    'mailbox_mode': mailbox_mode,
     'created': created,
     'reviewed_only': reviewed,
 }, indent=2))

@@ -1,2 +1,5 @@
+0 6 * * * cd /Users/kat/.openclaw/workspace && set -a && source .env && set +a && ./scripts/gmail-digest.py >> "$HOME/.openclaw/logs/gmail-digest.log" 2>&1
+0 12 * * * cd /Users/kat/.openclaw/workspace && set -a && source .env && set +a && ./scripts/gmail-digest.py >> "$HOME/.openclaw/logs/gmail-digest.log" 2>&1
+0 15 * * * cd /Users/kat/.openclaw/workspace && set -a && source .env && set +a && ./scripts/gmail-digest.py >> "$HOME/.openclaw/logs/gmail-digest.log" 2>&1
 33 * * * * cd /Users/kat/.openclaw/workspace && ./scripts/gmail-todoist-hourly.sh
 15 6 * * * cd /Users/kat/.openclaw/workspace && ./scripts/daily-memory-sync.sh

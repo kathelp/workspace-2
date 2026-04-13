@@ -87,3 +87,6 @@
   - `GET /usercollection/daily_spo2?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
   - `GET /usercollection/workout?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
 - **Discord channel:** #oura-ring (id: 1480736825558437918)
+
+## Discord Channels
+- **#daily-digests:** `1491060915385405441`
